@@ -116,5 +116,11 @@ The following are additional dependencies required for experimental support of N
 ### Guest (Android Container) Requirements:
 *   **Mesa with VirGL Driver:** The Android image used within the LXC container must have Mesa compiled with support for the VirGL guest driver (`virpipe_dri.so`). This allows the Android system to send rendering commands to VirGL.
 
+**Note on `pkg-config` and `virglrenderer`**: If you have `libvirglrenderer-devel` (or your system's equivalent) installed but the build process still reports errors related to `virglrenderer` not being found during C compilation (e.g., `Package 'virglrenderer', required by 'virtual:world', not found` or missing headers/symbols), ensure that your `PKG_CONFIG_PATH` environment variable includes the directory where `virglrenderer.pc` is installed. Common paths for `.pc` files include `/usr/lib/pkgconfig`, `/usr/lib64/pkgconfig`, `/usr/share/pkgconfig`, and `/usr/local/lib/pkgconfig`. You may need to set this variable in your shell before building, for example:
+```sh
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
+```
+(Adjust the path according to your system.)
+
 **Note:** This feature is experimental. Functionality, performance, and stability are not guaranteed. The necessary LXC configurations and VirGL initialization are being actively developed.
 

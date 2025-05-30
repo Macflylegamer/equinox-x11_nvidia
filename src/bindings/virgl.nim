@@ -2,8 +2,8 @@
 ## Copyright (C) 2025 Trayambak Rai and the EquinoxHQ team
 import std/[posix]
 
-{.passC: gorge("pkg-config --cflags virglrenderer").}
-{.passL: gorge("pkg-config --libs virglrenderer").}
+{.passC: gorge("pkg-config --silence-errors --cflags virglrenderer").}
+{.passL: gorge("pkg-config --silence-errors --libs virglrenderer").}
 
 template def(val: untyped) =
   var `val`* {.importc, header: "<virgl/virglrenderer.h>".}: int32
