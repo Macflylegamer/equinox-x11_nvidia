@@ -262,8 +262,8 @@ proc host_create_gl_context(cookie: pointer, scanout_idx: cint, param: ptr virgl
     return nil
 
   if param != nil:
-    debug "  Context params: version_major: ", param.major, ", version_minor: ", param.minor, ", shared: ", param.shared
-    # TODO: Use context creation parameters (param.major, param.minor, param.shared)
+    debug "  Context params: version_major: ", param.major_ver, ", version_minor: ", param.minor_ver, ", shared: ", param.shared
+    # TODO: Use context creation parameters (param.major_ver, param.minor_ver, param.shared)
     #       e.g., by using glXCreateContextAttribsARB if available, for specific GL versions.
 
   # Attributes for glXChooseVisual.
