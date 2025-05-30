@@ -1,9 +1,7 @@
 import std/[os, logging, options, strutils, sequtils, tables]
 import pkg/[glob]
 
-const UnsupportedGPUDrivers* = [
-  # "nvidia" # TODO: novideo support........
-]
+const UnsupportedGPUDrivers*: seq[string] = @[] # Explicitly typed empty sequence
 
 type
   InvalidRenderDevice* = object of ValueError
@@ -408,64 +406,3 @@ proc initVirgl*(drmFd: cint = -1): bool =
 
   info "VirGL: VirGL renderer initialized successfully." # 2 spaces
   return true                                 # 2 spaces
-
-type
-  VirglInitError* = object of Exception
-
-proc initVirgl*(drmFd: cint = -1): bool =
-  var callbacks: virgl_renderer_callbacks
-  callbacks.version = VIRGL_RENDERER_CALLBACKS_VERSION
-
-  # Initialize X11 display if not already done
-  if hostDisplay == nil:
-    hostDisplay = XOpenDisplay(nil) # Open default display
-    if hostDisplay == nil:
-      error "Failed to open X11 display."
-      raise newException(VirglInitError, "XOpenDisplay failed. Ensure X server is running and DISPLAY is set.")
-    else:
-      info "Successfully opened X11 display: ", hostDisplay
-      # Clean up display on application exit? This is tricky with shared library usage.
-      # For now, keep it open. LXC container context means it closes on container exit.
-
-  # Assign VirGL host callbacks
-  callbacks.write_fence = host_write_fence
-  callbacks.create_gl_context = host_create_gl_context
-  callbacks.destroy_gl_context = host_destroy_gl_context
-  callbacks.make_current = host_make_current
-  callbacks.get_drm_fd = host_get_drm_fd
-  callbacks.write_context_fence = host_write_context_fence
-
-  # Explicitly set unused Wayland/EGL specific callbacks to nil for clarity and safety.
-  callbacks.get_server_fd = nil   # For Wayland integration (external server fd)
-  callbacks.get_egl_display = nil # For EGL specific interop
-
-  # TODO: Review the full virgl_renderer_callbacks struct definition from the
-  # `../bindings/virgl` module. Ensure all other non-implemented members are
-  # explicitly set to nil if they are not automatically zero-initialized or if
-  # explicit assignment is preferred for clarity. Examples of other callbacks:
-  # - get_caps
-  # - resource_create, resource_attach_iov, resource_detach_iov
-  # - context_create, context_destroy (if different from gl_context versions)
-  # - submit_cmd
-  # - resource_map, resource_unmap (critical for shared memory/DMA buf)
-  # - create_gl_context_with_flags (more advanced context creation)
-
-  let flags = VIRGL_RENDERER_USE_GLX
-  debug "Attempting to initialize VirGL renderer with flags: ", flags, ", callbacks version: ", callbacks.version
-  let result = virgl_renderer_init(nil, flags.cint, addr(callbacks))
-
-  if result != 0:
-    error "Failed to initialize VirGL renderer. Error code: ", result
-    # Clean up X display if we opened it and init failed?
-    # if hostDisplay != nil:
-    #   XCloseDisplay(hostDisplay)
-    #   hostDisplay = nil
-    return false
-
-  info "VirGL renderer initialized successfully."
-  # If defaultHostWindow was created and is no longer needed after init (e.g. for tests), destroy it.
-  # However, it's likely needed for ongoing make_current calls.
-  # if defaultHostWindow != 0:
-  #   XDestroyWindow(hostDisplay, defaultHostWindow)
-  #   defaultHostWindow = 0
-  return true
