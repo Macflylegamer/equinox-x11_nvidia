@@ -87,11 +87,11 @@ proc startAndroidRuntime*(input: Input, launchRoblox: bool = true) =
     else:
       stderr.writeLine "Debug: run.nim - startAndroidRuntime() - initVirgl() succeeded."
   except Exception as e:
-    stderr.writeLine "FATAL CRASH in startAndroidRuntime() during/after initVirgl():
-Exception Type: " & $e.name & "
-Message: " & e.msg & "
-StackTrace:
-" & e.getStackTrace()
+    stderr.writeLine "FATAL CRASH in startAndroidRuntime() during/after initVirgl():"
+    stderr.writeLine "  Exception Type: " & $e.name
+    stderr.writeLine "  Message: " & e.msg
+    stderr.writeLine "  StackTrace:"
+    stderr.writeLine e.getStackTrace() # getStackTrace() itself produces a multi-line string
     quit(1) # Definitely quit if initVirgl crashes
 
   stderr.writeLine "Debug: run.nim - startAndroidRuntime() - Proceeding to start LXC container..."
