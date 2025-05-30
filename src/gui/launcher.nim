@@ -173,7 +173,7 @@ method view(app: LauncherState): Widget =
                 app.sock.send(LauncherMagic.Halt)
 
 proc waitForCommands*(env: XdgEnv, fd: cint) {.noReturn.} =
-  stderr.writeLine "Debug: launcher.nim - waitForCommands() - Child (PID: " & $osproc.getpid() & ") waiting for IPC."
+  stderr.writeLine "Debug: launcher.nim - waitForCommands() - Child (PID: " & $getpid() & ") waiting for IPC."
   debug "launcher/child: waiting for commands" # Original debug log
 
   var running = true
@@ -194,7 +194,7 @@ proc waitForCommands*(env: XdgEnv, fd: cint) {.noReturn.} =
       let pid = fork()
 
       if pid == 0:
-        stderr.writeLine "Debug: launcher.nim - waitForCommands() - Grandchild process (PID: " & $osproc.getpid() & ") executing 'equinox run'..."
+        stderr.writeLine "Debug: launcher.nim - waitForCommands() - Grandchild process (PID: " & $getpid() & ") executing 'equinox run'..."
         debug "launcher/child: we're the forked child" # Original debug log
         discard execCmd(cmd)
         quit(0)
@@ -229,11 +229,11 @@ proc runLauncher*(input: Input) =
   # If we're the parent - we launch the GUI.
   # Else, we'll sit around waiting for commands to act upon.
   if pid != 0:
-    stderr.writeLine "Debug: launcher.nim - runLauncher() - Parent process (PID: " & $osproc.getpid() & ") starting GUI."
+    stderr.writeLine "Debug: launcher.nim - runLauncher() - Parent process (PID: " & $getpid() & ") starting GUI."
     adw.brew(gui(Launcher(sock = pair.master, env = env)))
 
     # Tell the child to die.
     pair.master.send(LauncherMagic.Die)
   else:
-    stderr.writeLine "Debug: launcher.nim - runLauncher() - Child process (PID: " & $osproc.getpid() & ") starting waitForCommands."
+    stderr.writeLine "Debug: launcher.nim - runLauncher() - Child process (PID: " & $getpid() & ") starting waitForCommands."
     waitForCommands(env, pair.slave)
