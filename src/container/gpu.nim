@@ -181,12 +181,12 @@ proc glXMakeCurrent*(dpy: ptr DisplayX, drawable: GLXDrawable, ctx: GLXContext):
 
 # Module-level X11/GLX state
 var
-  hostDisplay {.threadvar.}: ptr DisplayX = nil
+  hostDisplay {.threadvar.}: ptr DisplayX
   # A simple window for GLX contexts if needed as a default drawable.
   # VirGL might manage its own scanout surfaces, this is a fallback/default.
-  defaultHostWindow {.threadvar.}: WindowX = 0 # 0 is None/Null for Window XID
+  defaultHostWindow {.threadvar.}: WindowX
   # TODO: Proper management of this window (creation/destruction)
-  drmRenderNodeFd {.threadvar.}: cint = -1 # Cached DRM render node FD for get_drm_fd
+  drmRenderNodeFd {.threadvar.}: cint
 
 # VirGL Host Callbacks Implementation
 
