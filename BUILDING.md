@@ -98,4 +98,23 @@ $ equinox_gui auto
 ```
 This is for the first run. After this, Equinox will create a desktop entry for you that'll let you launch it from your application launcher without the terminal.
 
+---
+
+## Experimental Nvidia GPU / VirGL / X11 Support Dependencies
+The following are additional dependencies required for experimental support of Nvidia GPUs via VirGL and X11. This is an advanced feature currently under development.
+
+### Host System Requirements:
+*   **Proprietary Nvidia Drivers:** Ensure the official Nvidia proprietary drivers are installed and working correctly on your host system.
+*   **X11 Server:** An X11 server (Xorg) must be running. Wayland-only environments will not work with this experimental X11-based rendering.
+*   **Development Packages:** You will need the development packages for the following libraries. Package names may vary by distribution (e.g., `-dev` for Debian/Ubuntu, `-devel` for Fedora/SUSE).
+    *   **virglrenderer:** Provides the VirGL renderer library (e.g., `libvirglrenderer-devel`, `virglrenderer-devel`).
+    *   **X11 Libraries:** Core X11 and X extension libraries (e.g., `libX11-devel`, `libXext-devel`).
+    *   **OpenGL/GLX Libraries:** For host-side OpenGL context creation. Nvidia drivers typically provide `libGL.so`, `libGLX.so`, etc., but development headers might be needed separately (e.g., `libglvnd-devel`, `mesa-libGL-devel`, `libGLX-devel`, or Nvidia-specific SDKs if applicable).
+    *   **libepoxy (Recommended):** A library for handling OpenGL function pointers, which can simplify GLX/EGL management (e.g., `libepoxy-devel`).
+    *   *(Package names for specific distributions can be added here as they are confirmed.)*
+
+### Guest (Android Container) Requirements:
+*   **Mesa with VirGL Driver:** The Android image used within the LXC container must have Mesa compiled with support for the VirGL guest driver (`virpipe_dri.so`). This allows the Android system to send rendering commands to VirGL.
+
+**Note:** This feature is experimental. Functionality, performance, and stability are not guaranteed. The necessary LXC configurations and VirGL initialization are being actively developed.
 

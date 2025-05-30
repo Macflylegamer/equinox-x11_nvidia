@@ -16,3 +16,54 @@ lxc.include = WORKING/lxc/equinox/config_session
 
 lxc.hook.post-stop = /dev/null
 
+# Nvidia GPU Passthrough - Devices
+# IMPORTANT: Verify these major numbers on the target host system using 'ls -l /dev/nvidia*'
+# Common major number for /dev/nvidia0, /dev/nvidia1, etc.
+lxc.cgroup2.devices.allow = c 195:* rwm
+# Common major number for /dev/nvidia-uvm, /dev/nvidia-uvm-tools
+lxc.cgroup2.devices.allow = c 236:* rwm
+# Common major number for /dev/nvidia-modeset
+lxc.cgroup2.devices.allow = c 239:* rwm
+
+lxc.mount.entry = /dev/nvidia0 /dev/nvidia0 none bind,optional,create=file 0 0
+lxc.mount.entry = /dev/nvidiactl /dev/nvidiactl none bind,optional,create=file 0 0
+lxc.mount.entry = /dev/nvidia-uvm /dev/nvidia-uvm none bind,optional,create=file 0 0
+lxc.mount.entry = /dev/nvidia-uvm-tools /dev/nvidia-uvm-tools none bind,optional,create=file 0 0
+lxc.mount.entry = /dev/nvidia-modeset /dev/nvidia-modeset none bind,optional,create=file 0 0
+
+# Nvidia GPU Passthrough - Driver Libraries
+# IMPORTANT: Adjust paths based on the host system's Nvidia driver installation.
+# These are common locations. Using /opt/hostlibs within the container to avoid conflicts.
+# Ensure these directories exist on the host, or LXC container startup might fail if not 'optional'.
+lxc.mount.entry = /usr/lib/x86_64-linux-gnu /opt/hostlibs/x86_64-linux-gnu none bind,optional,ro 0 0
+lxc.mount.entry = /usr/lib64 /opt/hostlibs/lib64 none bind,optional,ro 0 0
+# An alternative is to mount a specific driver version directory if known, e.g.:
+# lxc.mount.entry = /usr/lib/nvidia/PVER /usr/lib/nvidia/PVER none bind,optional,ro 0 0
+# The container's ldconfig or LD_LIBRARY_PATH will need to be aware of /opt/hostlibs/*.
+
+# Environment variables for X11, VirGL, and Nvidia libraries
+# Set DISPLAY for X11 forwarding (adjust if host X11 setup is different)
+lxc.environment = DISPLAY=:0
+
+# Prepend host Nvidia library paths to LD_LIBRARY_PATH for VirGL
+# These paths correspond to the mount points defined above for Nvidia driver libraries.
+# Standard library paths are appended to maintain access to system libraries.
+lxc.environment = LD_LIBRARY_PATH=/opt/hostlibs/x86_64-linux-gnu:/opt/hostlibs/lib64:/usr/local/lib:/usr/lib:/lib:/usr/lib/x86_64-linux-gnu:/usr/lib64
+
+# Override Mesa loader to prefer virgl (recommended for clarity and forcing VirGL)
+lxc.environment = MESA_LOADER_DRIVER_OVERRIDE=virgl
+
+# X11 Integration - Socket and Authority
+# Mount the X11 socket directory
+lxc.mount.entry = /tmp/.X11-unix /tmp/.X11-unix none bind,optional,create=dir 0 0
+
+# Mount the Xauthority file.
+# IMPORTANT: The host Xauthority file (e.g., $HOME/.Xauthority or system-specific path)
+# must be bind-mounted to /run/equinox/xauthority inside the container by a wrapper script
+# or user configuration for X11 applications to authenticate with the host X server.
+# Example host path: /home/USER/.Xauthority or /run/user/UID/gdm/Xauthority
+# The container will look for the Xauthority file at /run/equinox/xauthority.
+# The XAUTHORITY environment variable should be set to this path if not already default.
+lxc.mount.entry = /run/equinox/xauthority /run/equinox/xauthority none bind,optional,create=file 0 0
+# An lxc.environment line might be needed if applications don't default to /root/.Xauthority or /run/equinox/xauthority:
+# lxc.environment = XAUTHORITY=/run/equinox/xauthority

@@ -39,7 +39,10 @@ method view*(state: X11WarningState): Widget =
               margin = 24
 
 proc runX11Notice*() =
-  info "gui: haha look at this X11 using distrotube worshipping nerd"
-  adw.brew(
-    gui(X11Warning())
-  )
+  info "gui: X11 environment detected."
+  # The X11 warning dialog is currently disabled.
+  # If X11 support is partial or problematic, this could be re-enabled
+  # or provide specific instructions.
+  # adw.brew(
+  #   gui(X11Warning())
+  # )

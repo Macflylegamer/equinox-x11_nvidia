@@ -25,4 +25,13 @@ Equinox is a runtime for Roblox on Linux that uses LXC containers to run (y)our 
 - PC-exclusive games are not playable (Project Remix, Arcane Odyssey, etc.)
 
 # Known Issues (Which are a long-term goal to fix)
-- Nvidia support (possibly via VirGL/Venus? Probably requires a custom HAL implementation)
+- **Nvidia GPU Support (Experimental):** Support for Nvidia GPUs via VirGL on X11 has been implemented. This is an experimental feature.
+  - **Setup & Dependencies:** Requires specific host libraries and configurations. See the "Experimental Nvidia GPU / VirGL / X11 Support Dependencies" section in `BUILDING.md` for details.
+  - **Limitations and Known Issues (Nvidia/VirGL/X11):**
+    - Performance may vary depending on the Nvidia GPU model, driver version, and specific Roblox game.
+    - The current VirGL fence implementation is synchronous (`glClientWaitSync` with `GL_TIMEOUT_IGNORED`), which might impact performance in some scenarios. Asynchronous fencing could be explored for further optimization.
+    - This solution is specific to X11 (Xorg). Wayland-native Nvidia support is not yet implemented.
+    - Compatibility with all Nvidia driver versions or GPU generations is not guaranteed.
+    - Debugging graphics issues can be complex, requiring knowledge of X11, GLX, VirGL, and Nvidia driver interactions.
+    - Some Roblox games might still exhibit graphical glitches or performance issues that are unrelated to the host GPU acceleration (i.e., existing general issues).
+- Wayland-native GPU acceleration for Nvidia (beyond Xwayland) is a future consideration.
