@@ -204,7 +204,7 @@ proc host_write_fence(cookie: pointer, fence_id: uint32): void {.cdecl.} =
     error "VirGL: host_write_fence - glFenceSync failed. This can lead to rendering synchronization issues."
     return
 
-  let waitResult = glClientWaitSync(syncObj, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED) # Wait indefinitely
+  let waitResult = glClientWaitSync(syncObj, GL_SYNC_FLUSH_COMMANDS_BIT, uint64(GL_TIMEOUT_IGNORED)) # Wait indefinitely
 
   if waitResult == 0x911B: # GL_WAIT_FAILED
     error "VirGL: host_write_fence - glClientWaitSync failed. GPU commands may not be flushed."
@@ -246,7 +246,7 @@ proc host_write_context_fence(cookie: pointer, ctx_id: uint32, ring_idx: uint32,
     error "VirGL: host_write_context_fence - glFenceSync failed."
     return
 
-  let waitResult = glClientWaitSync(syncObj, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED)
+  let waitResult = glClientWaitSync(syncObj, GL_SYNC_FLUSH_COMMANDS_BIT, uint64(GL_TIMEOUT_IGNORED))
   if waitResult == 0x911B: # GL_WAIT_FAILED
     error "VirGL: host_write_context_fence - glClientWaitSync failed."
   elif waitResult == 0x911A: # GL_TIMEOUT_EXPIRED
