@@ -9,6 +9,7 @@ proc adw_spinner_new*(): GtkWidget
 renderable AdwSpinner:
   hooks:
     beforeBuild:
-      state.internalWidget = adw_spinner_new()
+      # state.internalWidget = adw_spinner_new() # adw_spinner_new not found in libadwaita 1.5.0
+      discard "adw_spinner_new temporarily commented out"
 
 export AdwSpinner
