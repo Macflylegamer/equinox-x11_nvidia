@@ -357,7 +357,7 @@ proc placeholder_get_drm_fd(cookie: pointer): cint {.cdecl.} =
 type
   VirglInitError* = object of Exception
 
-proc initVirgl*(drmFd: cint = -1): bool =
+proc initVirgl*(drmFd: cint = -1): bool {.exportc.} =
   debug "VirGL: Initializing VirGL renderer..." # 2 spaces
   var callbacks: virgl_renderer_callbacks      # 2 spaces
   callbacks.version = VIRGL_RENDERER_CALLBACKS_VERSION # 2 spaces
