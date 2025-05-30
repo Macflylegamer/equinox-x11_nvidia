@@ -285,7 +285,7 @@ proc host_create_gl_context(cookie: pointer, scanout_idx: cint, param: ptr virgl
   if visualInfo == nil:
     error "VirGL: host_create_gl_context - No suitable GLX visual found. Ensure your X server and GL drivers support the requested attributes."
     return nil
-  defer: XFree(visualInfo)
+  defer: discard XFree(visualInfo)
 
   debug "Chosen GLX visual ID: ", visualInfo.visualid
 
