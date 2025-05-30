@@ -1,4 +1,5 @@
-import std/[os, options, logging, strutils, posix, tables, json]
+import std/[os, options, logging, strutils, posix, tables, json, strformat]
+import ../container/gpu # For initVirgl
 import
   ../container/[lxc, drivers, platform, network, rootfs, app_config, fflags, settings]
 import pkg/[discord_rpc, shakar]
@@ -56,8 +57,9 @@ proc patchOutOSK*() =
   discard &runCmdInContainer("pm uninstall --user 0 com.android.inputmethod.latin")
 
 proc startAndroidRuntime*(input: Input, launchRoblox: bool = true) =
-  info "equinox: starting android runtime"
-  debug "equinox: starting prep for android runtime"
+  stderr.writeLine "Debug: run.nim - startAndroidRuntime() called."
+  info "equinox: starting android runtime" # Original info log
+  debug "equinox: starting prep for android runtime" # Original debug log
 
   destroyAllLogs(&input.flag("user"))
   mountRootfs(input, getImagesPath())
@@ -76,6 +78,24 @@ proc startAndroidRuntime*(input: Input, launchRoblox: bool = true) =
   setFflags(input, settings.fflags)
   generateSessionLxcConfig(input)
 
+  stderr.writeLine "Debug: run.nim - startAndroidRuntime() - Attempting to initialize VirGL..."
+  try:
+    if not initVirgl(): # initVirgl is from ../container/gpu
+      stderr.writeLine "FATAL ERROR in startAndroidRuntime(): initVirgl() returned false. Equinox may not function correctly or will have significantly reduced performance."
+      # Not quitting here allows container to start for debugging or if VirGL isn't strictly critical for some non-Roblox use case.
+      # quit(1)
+    else:
+      stderr.writeLine "Debug: run.nim - startAndroidRuntime() - initVirgl() succeeded."
+  except Exception as e:
+    stderr.writeLine "FATAL CRASH in startAndroidRuntime() during/after initVirgl():
+Exception Type: " & $e.name & "
+Message: " & e.msg & "
+StackTrace:
+" & e.getStackTrace()
+    quit(1) # Definitely quit if initVirgl crashes
+
+  stderr.writeLine "Debug: run.nim - startAndroidRuntime() - Proceeding to start LXC container..."
+
   var dispatcher = initEventDispatcher()
   dispatcher.running = true
 
@@ -83,7 +103,9 @@ proc startAndroidRuntime*(input: Input, launchRoblox: bool = true) =
     stopLxcContainer()
 
   startLxcContainer(input)
+  stderr.writeLine "Debug: run.nim - startAndroidRuntime() - startLxcContainer() finished."
   waitForContainerBoot()
+  stderr.writeLine "Debug: run.nim - startAndroidRuntime() - waitForContainerBoot() finished."
 
   var platform = getIPlatformService(&input.flag("user"))
   platform.setProperty("waydroid.active_apps", "com.roblox.client")

@@ -173,7 +173,8 @@ method view(app: LauncherState): Widget =
                 app.sock.send(LauncherMagic.Halt)
 
 proc waitForCommands*(env: XdgEnv, fd: cint) {.noReturn.} =
-  debug "launcher/child: waiting for commands"
+  stderr.writeLine "Debug: launcher.nim - waitForCommands() - Child (PID: " & $osproc.getpid() & ") waiting for IPC."
+  debug "launcher/child: waiting for commands" # Original debug log
 
   var running = true
   while running:
@@ -183,16 +184,18 @@ proc waitForCommands*(env: XdgEnv, fd: cint) {.noReturn.} =
 
     case op
     of LauncherMagic.Launch:
+      stderr.writeLine "Debug: launcher.nim - waitForCommands() - Received Launch command. Forking for 'equinox run'..."
       let cmd =
         findExe("pkexec") & ' ' & env.equinoxPath & " run --xdg-runtime-dir:" &
         env.runtimeDir & " --wayland-display:" & env.waylandDisplay & " --user:" &
         env.user & " --uid:" & $getuid() & " --gid:" & $getgid()
 
-      debug "launcher/child: cmd -> " & cmd
+      debug "launcher/child: cmd -> " & cmd # Original debug log
       let pid = fork()
 
       if pid == 0:
-        debug "launcher/child: we're the forked child"
+        stderr.writeLine "Debug: launcher.nim - waitForCommands() - Grandchild process (PID: " & $osproc.getpid() & ") executing 'equinox run'..."
+        debug "launcher/child: we're the forked child" # Original debug log
         discard execCmd(cmd)
         quit(0)
       else:
@@ -218,6 +221,7 @@ proc waitForCommands*(env: XdgEnv, fd: cint) {.noReturn.} =
   quit(0)
 
 proc runLauncher*(input: Input) =
+  stderr.writeLine "Debug: launcher.nim - runLauncher() called."
   let pair = initIpcFds()
   let pid = fork()
   let env = getXdgEnv(input)
@@ -225,9 +229,11 @@ proc runLauncher*(input: Input) =
   # If we're the parent - we launch the GUI.
   # Else, we'll sit around waiting for commands to act upon.
   if pid != 0:
+    stderr.writeLine "Debug: launcher.nim - runLauncher() - Parent process (PID: " & $osproc.getpid() & ") starting GUI."
     adw.brew(gui(Launcher(sock = pair.master, env = env)))
 
     # Tell the child to die.
     pair.master.send(LauncherMagic.Die)
   else:
+    stderr.writeLine "Debug: launcher.nim - runLauncher() - Child process (PID: " & $osproc.getpid() & ") starting waitForCommands."
     waitForCommands(env, pair.slave)

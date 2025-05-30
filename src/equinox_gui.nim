@@ -34,6 +34,7 @@ proc showX11Notice(input: Input) =
 
 proc main() {.inline.} =
   addHandler(newColoredLogger())
+  stderr.writeLine "Debug: Equinox GUI main() started."
   setLogFilter(lvlInfo)
   let input = parseInput()
   if input.enabled("verbose", "v"):
@@ -44,7 +45,9 @@ proc main() {.inline.} =
   createMimeHandlerEntry()
 
   if getEnv("XDG_SESSION_TYPE") != "wayland":
-    showX11Notice(input)
+    stderr.writeLine "Debug: Equinox GUI main() - Before showX11Notice."
+    showX11Notice(input) # This call includes quit(1)
+    stderr.writeLine "Debug: Equinox GUI main() - After showX11Notice. (This line may not be reached if X11 notice quits)"
 
   case input.command
   of "onboarding":
@@ -71,6 +74,7 @@ proc main() {.inline.} =
       if needsApkUpdate() and not input.enabled("skip-apk-updates", "X"):
         showApkUpdater(input)
       else:
+        stderr.writeLine "Debug: Equinox GUI main() - 'auto' command, before showLauncher."
         showLauncher(input)
   of "updater":
     showApkUpdater(input)
