@@ -360,239 +360,54 @@ type
   VirglInitError* = object of Exception
 
 proc initVirgl*(drmFd: cint = -1): bool =
-  debug "VirGL: Initializing VirGL renderer..."
-  var callbacks: virgl_renderer_callbacks
-  callbacks.version = VIRGL_RENDERER_CALLBACKS_VERSION
+  debug "VirGL: Initializing VirGL renderer..." # 2 spaces
+  var callbacks: virgl_renderer_callbacks      # 2 spaces
+  callbacks.version = VIRGL_RENDERER_CALLBACKS_VERSION # 2 spaces
 
-  if hostDisplay == nil:
-    hostDisplay = XOpenDisplay(nil)
-    if hostDisplay == nil:
-      error "VirGL: Failed to open X11 display. Ensure X server is running and DISPLAY environment variable is correctly set."
-      raise newException(VirglInitError, "XOpenDisplay failed. Ensure X server is running and DISPLAY is set.")
-    else:
-      info "VirGL: Successfully opened X11 display: ", hostDisplay
+  # Initialize X11 display if not already done
+  if hostDisplay == nil:                       # 2 spaces
+    hostDisplay = XOpenDisplay(nil)            # 4 spaces
+    if hostDisplay == nil:                     # 4 spaces
+      error "VirGL: Failed to open X11 display. Ensure X server is running and DISPLAY environment variable is correctly set." # 6 spaces
+      raise newException(VirglInitError, "XOpenDisplay failed. Ensure X server is running and DISPLAY is set.") # 6 spaces
+    else:                                     # 4 spaces
+      info "VirGL: Successfully opened X11 display: ", hostDisplay # 6 spaces
+      # Clean up display on application exit? This is tricky with shared library usage. # 6 spaces
+      # For now, keep it open. LXC container context means it closes on container exit.  # 6 spaces
 
-  callbacks.write_fence = host_write_fence
-  callbacks.create_gl_context = host_create_gl_context
-  callbacks.destroy_gl_context = host_destroy_gl_context
-  callbacks.make_current = host_make_current
-  callbacks.get_drm_fd = host_get_drm_fd
-  callbacks.write_context_fence = host_write_context_fence
+  # Assign VirGL host callbacks
+  callbacks.write_fence = host_write_fence    # 2 spaces
+  callbacks.create_gl_context = host_create_gl_context # 2 spaces
+  callbacks.destroy_gl_context = host_destroy_gl_context # 2 spaces
+  callbacks.make_current = host_make_current  # 2 spaces
+  callbacks.get_drm_fd = host_get_drm_fd      # 2 spaces
+  callbacks.write_context_fence = host_write_context_fence # 2 spaces
 
-  callbacks.get_server_fd = nil
-  callbacks.get_egl_display = nil
+  # Explicitly set unused Wayland/EGL specific callbacks to nil
+  callbacks.get_server_fd = nil               # 2 spaces
+  callbacks.get_egl_display = nil             # 2 spaces
 
-  let flags = VIRGL_RENDERER_USE_GLX
-  debug "VirGL: Attempting to initialize VirGL renderer with flags: ", flags, ", callbacks version: ", callbacks.version
-  let result = virgl_renderer_init(nil, flags.cint, addr(callbacks))
+  # TODO: Review the full virgl_renderer_callbacks struct definition from the
+  # `../bindings/virgl` module. Ensure all other non-implemented members are
+  # explicitly set to nil if they are not automatically zero-initialized or if
+  # explicit assignment is preferred for clarity. Examples of other callbacks:
+  # - get_caps
+  # - resource_create, resource_attach_iov, resource_detach_iov
+  # - context_create, context_destroy (if different from gl_context versions)
+  # - submit_cmd
+  # - resource_map, resource_unmap (critical for shared memory/DMA buf)
+  # - create_gl_context_with_flags (more advanced context creation)
 
-  if result != 0:
-    error "VirGL: CRITICAL - Failed to initialize VirGL renderer. Error code: ", result, ". Check VirGL/Mesa versions and GPU compatibility. Equinox may not function correctly or will have significantly reduced performance."
-    return false
+  let flags = VIRGL_RENDERER_USE_GLX          # 2 spaces
+  debug "VirGL: Attempting to initialize VirGL renderer with flags: ", flags, ", callbacks version: ", callbacks.version # 2 spaces
+  let result = virgl_renderer_init(nil, flags.cint, addr(callbacks)) # 2 spaces
 
-  info "VirGL: VirGL renderer initialized successfully."
-  return true
-    # This implies that host_write_fence might be called when no context is current.
-    # For now, we try to get one, but this might fail if defaultHostWindow isn't set up.
-    # The cookie might point to per-context data that we could use to get the right context.
-    # This is a simplification; virglrenderer might expect fences to operate on a specific context.
-    # For now, using the "default" context made current by host_make_current(nil,0,some_context).
-    # This part is tricky: which GL context should this fence be on?
-    # Assuming it's the "current" one. If no context is current, this might be an issue.
-    # A simple check: if glXGetCurrentContext() == nil, this will likely fail or do nothing.
-    # For robust fence operations, a current context is usually required.
-    # Let's assume `host_make_current` with a valid context was called before this,
-    # or that virglrenderer ensures this. If not, this needs more thought.
-    # A minimal check:
-    # let currentCtx = glXGetCurrentContext()
-    # if currentCtx == nil:
-    #   warn "host_write_fence: No GLX context currently bound."
-    #   return # Or proceed, hoping for the best / relying on driver leniency
-    discard
+  if result != 0:                             # 2 spaces
+    error "VirGL: CRITICAL - Failed to initialize VirGL renderer. Error code: ", result, ". Check VirGL/Mesa versions and GPU compatibility. Equinox may not function correctly or will have significantly reduced performance." # 4 spaces
+    return false                               # 4 spaces
 
-  let syncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0) # 0 for flags
-  if syncObj == nil:
-    error "host_write_fence: glFenceSync failed."
-    # TODO: How to report this error back to virglrenderer?
-    return
-
-  # Wait for the fence to ensure commands are flushed. This makes the call synchronous.
-  # A very long timeout (1 second) is used here.
-  # In a real scenario, managing these sync objects (e.g., deleting them later) is important.
-  # For now, wait and delete immediately.
-  let waitResult = glClientWaitSync(syncObj, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED) # Wait indefinitely
-  # let waitResult = glClientWaitSync(syncObj, GL_SYNC_FLUSH_COMMANDS_BIT, 1_000_000_000) # 1 sec timeout
-
-  # TODO: Check waitResult (GL_ALREADY_SIGNALED, GL_TIMEOUT_EXPIRED, GL_CONDITION_SATISFIED, GL_WAIT_FAILED)
-  # For now, we assume it completes or we proceed anyway after timeout.
-  if waitResult == 0x911B: # GL_WAIT_FAILED from glext.h (GLenum usually cint)
-    error "host_write_fence: glClientWaitSync failed."
-
-  glDeleteSync(syncObj)
-  # debug "host_write_fence: Processed fence_id: ", fence_id
-
-proc host_get_drm_fd(cookie: pointer): cint {.cdecl.} =
-  debug "VirGL Callback: host_get_drm_fd called"
-  # Check if we already have a cached FD.
-  if drmRenderNodeFd >= 0:
-    # Need to dup it as virglrenderer might close it.
-    # However, the lifecycle is unclear. If virglrenderer uses it temporarily,
-    # returning the same FD might be fine if it doesn't close it.
-    # For safety, duping is better if the FD is to be long-lived on our side.
-    # Or, close the cached one and get a new one each time if short-lived.
-    # For now, let's assume virglrenderer doesn't close it, or we reopen.
-    # Given typical FD usage, virglrenderer likely expects a new FD it can own/close.
-    # So, let's not cache for now, or if we do, dup it.
-    # For simplicity of this step: open, return, expect caller to close. No caching.
-    discard
-
-  let nodeOpt = getDriNode() # This function finds /dev/dri/renderD*
-  if nodeOpt.isSome:
-    let drmPath = nodeOpt.get.dev
-    # O_CLOEXEC is good practice if Equinox forks other processes that shouldn't inherit this FD.
-    let fd = open(drmPath, O_RDWR or O_CLOEXEC)
-    if fd < 0:
-      error "host_get_drm_fd: Failed to open DRM node ", drmPath, " (errno: ", osLastError(), ")"
-      return -1
-    else:
-      debug "host_get_drm_fd: Successfully opened ", drmPath, ", returning fd: ", fd
-      # Store it? If so, when to close it?
-      # If virglrenderer is meant to own this FD, we shouldn't close it here.
-      # drmRenderNodeFd = fd # Example of caching
-      return fd
-  else:
-    error "host_get_drm_fd: No DRM node found."
-    return -1
-
-proc host_write_context_fence(cookie: pointer, ctx_id: uint32, ring_idx: uint32, fence_id: uint64): void {.cdecl.} =
-  debug "VirGL Callback: host_write_context_fence called with ctx_id: ", ctx_id, ", ring_idx: ", ring_idx, ", fence_id: ", fence_id
-  # This is a more advanced fencing, potentially per-context or per-ring (for Vulkan).
-  # For a GLX backend, this can be similar to host_write_fence for now.
-  # It might need to ensure operations on a specific context (identified by ctx_id if we map them)
-  # are flushed. The current GLX context is implicitly used by glFenceSync.
-  # This implies that the correct GLX context should be current when this is called.
-  # The `cookie` or `ctx_id` might be used to look up and make current the correct host context.
-  # This is a simplification.
-  let syncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0)
-  if syncObj == nil:
-    error "host_write_context_fence: glFenceSync failed."
-    return
-
-  let waitResult = glClientWaitSync(syncObj, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED)
-  if waitResult == 0x911B: # GL_WAIT_FAILED
-    error "host_write_context_fence: glClientWaitSync failed."
-
-  glDeleteSync(syncObj)
-  # debug "host_write_context_fence: Processed fence_id: ", fence_id
-
-# Actual host GLX context creation
-proc host_create_gl_context(cookie: pointer, scanout_idx: cint, param: ptr virgl_renderer_gl_ctx_param): virgl_renderer_gl_context {.cdecl.} =
-  debug "VirGL Callback: host_create_gl_context called for scanout_idx: ", scanout_idx
-  if hostDisplay == nil:
-    error "Host X11 display not initialized for host_create_gl_context."
-    return nil
-
-  if param != nil:
-    debug "  Context params: version_major: ", param.major, ", version_minor: ", param.minor, ", shared: ", param.shared
-    # TODO: Use these params (major, minor, shared) when creating context if possible.
-    # GLX has glXCreateContextAttribsARB for versioned contexts, but that requires extension loading.
-    # For now, using basic glXCreateContext.
-
-  # Attributes for glXChooseVisual. Need a visual that supports OpenGL.
-  var visualAttribs: array[10, cint] # Array large enough for common attributes + terminator
-  var i = 0
-  proc addAttrib(val: cint) = visualAttribs[i] = val; i += 1
-
-  addAttrib(GLX_RGBA)
-  addAttrib(GLX_DOUBLEBUFFER) # Often requested, though VirGL might manage this
-  addAttrib(GLX_RED_SIZE); addAttrib(8)
-  addAttrib(GLX_GREEN_SIZE); addAttrib(8)
-  addAttrib(GLX_BLUE_SIZE); addAttrib(8)
-  addAttrib(GLX_DEPTH_SIZE); addAttrib(24) # Common depth buffer size
-  addAttrib(0) # Null terminator for the attribute list
-
-  let screenNum = XDefaultScreen(hostDisplay)
-  let visualInfo = glXChooseVisual(hostDisplay, screenNum, addr(visualAttribs[0]))
-
-  if visualInfo == nil:
-    error "Failed to choose GLX visual."
-    return nil
-  defer: XFree(visualInfo) # Free the visual info when done
-
-  debug "Chosen GLX visual ID: ", visualInfo.visualid
-
-  # Create GLX context
-  # The `nil` for shared context means no sharing. `param.shared` could be used if it maps to a GLXContext.
-  # `GL_TRUE` for direct rendering context.
-  let glxCtx = glXCreateContext(hostDisplay, visualInfo, nil, GL_TRUE)
-  if glxCtx == nil:
-    error "Failed to create GLX context."
-    return nil
-
-  debug "Created GLX context: ", glxCtx
-  return virgl_renderer_gl_context(glxCtx) # Cast GLXContext to virgl_renderer_gl_context (pointer)
-
-# Actual host GLX context destruction
-proc host_destroy_gl_context(cookie: pointer, ctx: virgl_renderer_gl_context): void {.cdecl.} =
-  debug "VirGL Callback: host_destroy_gl_context called for context: ", ctx
-  if hostDisplay == nil:
-    error "Host X11 display not initialized for host_destroy_gl_context."
-    return
-
-  if ctx == nil:
-    warn "Attempted to destroy a nil GLX context."
-    return
-
-  let glxCtx = GLXContext(ctx) # Cast back from virgl_renderer_gl_context
-  glXDestroyContext(hostDisplay, glxCtx)
-  debug "Destroyed GLX context: ", glxCtx
-
-# Actual host GLX make current
-proc host_make_current(cookie: pointer, scanout_idx: cint, ctx: virgl_renderer_gl_context): cint {.cdecl.} =
-  # debug "VirGL Callback: host_make_current called for scanout: ", scanout_idx, ", context: ", ctx
-  if hostDisplay == nil:
-    # error "Host X11 display not initialized for host_make_current." # Too noisy
-    return -1
-
-  let glxCtx = GLXContext(ctx) # Cast back
-
-  # VirGL often uses surfaceless rendering or manages its own drawables (scanouts).
-  # For now, we need a drawable. If defaultHostWindow is not set, try to create one.
-  # This is a very basic drawable management, likely needs refinement for VirGL.
-  if defaultHostWindow == 0 and glxCtx != nil : # Only create window if context is not nil
-    let screenNum = XDefaultScreen(hostDisplay)
-    let rootWin = XRootWindow(hostDisplay, screenNum)
-    # Create a minimal 1x1 window.
-    # In a real scenario, this might be a Pbuffer or a window tied to a scanout.
-    defaultHostWindow = XCreateSimpleWindow(hostDisplay, rootWin, 0, 0, 1, 1, 0, 0, 0)
-    debug "Created default 1x1 X11 window for GLX context: ", defaultHostWindow
-
-  # If context is nil, we are unbinding. Use GLX_NONE for drawable.
-  let drawableToUse = if glxCtx == nil: cast[GLXDrawable](0) else: defaultHostWindow
-
-  if glxCtx != nil and drawableToUse == 0:
-    # error "No drawable available for host_make_current with a valid context." # Can be noisy
-    # This state means we want to make a context current, but have no window/pbuffer.
-    # For surfaceless EGL, this is fine, but GLX usually needs a drawable.
-    # Depending on VirGL flags (e.g. surfaceless), this might be okay or an issue.
-    # For now, we proceed, glXMakeCurrent might fail if drawable is invalid for the context.
-    # It might also be that VirGL expects us to create a Pbuffer based on scanout_idx or similar.
-    # This part is crucial and needs to align with how VirGL expects scanouts to be handled.
-    debug "host_make_current: context is valid but drawable is 0. Proceeding, may fail."
-
-
-  if glXMakeCurrent(hostDisplay, drawableToUse, glxCtx) != 0: # Non-zero is success for glXMakeCurrent in some bindings, zero in others. Standard is True (non-zero) for success.
-    # trace "Made GLX context ", glxCtx, " current on drawable ", drawableToUse # trace is very verbose
-    return 0 # Success
-  else:
-    if glxCtx != nil: # Only log error if we were trying to make a valid context current
-      warn "glXMakeCurrent failed for context ", glxCtx, " on drawable ", drawableToUse
-    return -1 # Failure
-
-proc placeholder_get_drm_fd(cookie: pointer): cint {.cdecl.} =
-  debug "VirGL Callback: get_drm_fd called, cookie: ", cookie
-  # TODO: Return a valid DRM file descriptor if needed, or -1 if not applicable/available.
-  return -1
+  info "VirGL: VirGL renderer initialized successfully." # 2 spaces
+  return true                                 # 2 spaces
 
 type
   VirglInitError* = object of Exception
