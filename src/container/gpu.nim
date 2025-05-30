@@ -294,12 +294,12 @@ proc host_create_gl_context(cookie: pointer, scanout_idx: cint, param: ptr virgl
     error "VirGL: host_create_gl_context - Failed to create GLX context. This can be due to driver issues or resource limits."
     return nil
 
-  debug "Created GLX context: ", glxCtx
+  debug "Created GLX context: ", cast[BiggestInt](glxCtx)
   return virgl_renderer_gl_context(glxCtx)
 
 # Actual host GLX context destruction
 proc host_destroy_gl_context(cookie: pointer, ctx: virgl_renderer_gl_context): void {.cdecl.} =
-  debug "VirGL: host_destroy_gl_context called for context: ", ctx
+  debug "VirGL: host_destroy_gl_context called for context: ", cast[BiggestInt](ctx)
   if hostDisplay == nil:
     error "VirGL: host_destroy_gl_context - Host X11 display not initialized."
     return
@@ -310,12 +310,12 @@ proc host_destroy_gl_context(cookie: pointer, ctx: virgl_renderer_gl_context): v
 
   let glxCtx = GLXContext(ctx)
   glXDestroyContext(hostDisplay, glxCtx)
-  debug "Destroyed GLX context: ", glxCtx
+  debug "Destroyed GLX context: ", cast[BiggestInt](glxCtx)
 
 # Actual host GLX make current
 proc host_make_current(cookie: pointer, scanout_idx: cint, ctx: virgl_renderer_gl_context): cint {.cdecl.} =
   # This log can be very verbose; `trace` level might be more appropriate in the long term.
-  debug "VirGL: host_make_current called for scanout: ", scanout_idx, ", context: ", ctx
+  debug "VirGL: host_make_current called for scanout: ", scanout_idx, ", context: ", cast[BiggestInt](ctx)
   if hostDisplay == nil:
     error "VirGL: host_make_current - Host X11 display not initialized."
     return -1
@@ -345,7 +345,7 @@ proc host_make_current(cookie: pointer, scanout_idx: cint, ctx: virgl_renderer_g
   else:
     # Log more selectively to avoid spamming if called frequently with nil context (unbind)
     if glxCtx != nil :
-      warn "VirGL: host_make_current - glXMakeCurrent failed for context ", glxCtx, " on drawable ", drawableToUse, ". This can cause rendering failures."
+      warn "VirGL: host_make_current - glXMakeCurrent failed for context ", cast[BiggestInt](glxCtx), " on drawable ", cast[BiggestInt](drawableToUse), ". This can cause rendering failures."
     # else:
       # debug "VirGL: host_make_current - Unbound context (glXMakeCurrent with nil context)" # Usually not an error
     return -1 # Failure
@@ -369,7 +369,7 @@ proc initVirgl*(drmFd: cint = -1): bool =
       error "VirGL: Failed to open X11 display. Ensure X server is running and DISPLAY environment variable is correctly set." # 6 spaces
       raise newException(VirglInitError, "XOpenDisplay failed. Ensure X server is running and DISPLAY is set.") # 6 spaces
     else:                                     # 4 spaces
-      info "VirGL: Successfully opened X11 display: ", hostDisplay # 6 spaces
+      info "VirGL: Successfully opened X11 display: ", cast[BiggestInt](hostDisplay) # 6 spaces
       # Clean up display on application exit? This is tricky with shared library usage. # 6 spaces
       # For now, keep it open. LXC container context means it closes on container exit.  # 6 spaces
 
