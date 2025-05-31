@@ -181,7 +181,9 @@ method view(app: SettingsMenuState): Widget =
                       app.config.renderer = "vulkan"
                     of 1:
                       app.config.renderer = "opengl"
-                    # else was deemed unreachable by the compiler as ComboRow should only allow valid indices.
+                    else:
+                      # This case should ideally not be reached if ComboRow items are fixed.
+                      discard
 
                 ActionRow:
                   title = "Maximum FPS"
