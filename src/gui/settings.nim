@@ -1,5 +1,5 @@
 ## GUI shell
-import std/[logging, os, options, posix, json, strutils]
+import std/[logging, options, posix, strutils]
 import pkg/[owlkettle, shakar], pkg/owlkettle/adw
 import ../container/app_config, ./common
 
@@ -181,11 +181,7 @@ method view(app: SettingsMenuState): Widget =
                       app.config.renderer = "vulkan"
                     of 1:
                       app.config.renderer = "opengl"
-                    else:
-                      echo "Error: Invalid index from Rendering Backend ComboRow: ",
-                        index
-                      app.config.renderer = "vulkan"
-                      app.selected = 0
+                    # else was deemed unreachable by the compiler as ComboRow should only allow valid indices.
 
                 ActionRow:
                   title = "Maximum FPS"

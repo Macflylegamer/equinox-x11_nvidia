@@ -1,4 +1,4 @@
-import std/[os, options, logging, strutils]
+import std/[os, options, strutils]
 
 proc pidof*(name: string): Option[uint] =
   for kind, dir in walkDir("/proc"):

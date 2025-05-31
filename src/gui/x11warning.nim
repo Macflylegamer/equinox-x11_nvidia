@@ -1,4 +1,4 @@
-import std/[os, logging]
+import std/[logging]
 import pkg/[
   owlkettle,
   owlkettle/adw

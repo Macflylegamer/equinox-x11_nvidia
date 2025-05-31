@@ -42,6 +42,8 @@ proc getCardFromRenderNode*(device: string): string =
   "/dev" / "dri" / matches[0].splitPath().tail
 
 proc getDriNode*(): Option[DRINode] =
+  # FIXME: The call to walkGlob below may trigger a deprecation warning for `contains(string, Regex2)`
+  # originating from within the glob library itself. This is an internal issue to the glob package.
   let nodes = glob("/dev/dri/renderD*").walkGlob.toSeq()
 
   for node in nodes:
@@ -355,7 +357,7 @@ proc placeholder_get_drm_fd(cookie: pointer): cint {.cdecl.} =
   return -1
 
 type
-  VirglInitError* = object of Exception
+  VirglInitError* = object of CatchableError
 
 proc initVirgl*(drmFd: cint = -1): bool {.exportc.} =
   debug "VirGL: Initializing VirGL renderer..." # 2 spaces
@@ -398,10 +400,10 @@ proc initVirgl*(drmFd: cint = -1): bool {.exportc.} =
 
   let flags = VIRGL_RENDERER_USE_GLX          # 2 spaces
   debug "VirGL: Attempting to initialize VirGL renderer with flags: ", flags, ", callbacks version: ", callbacks.version # 2 spaces
-  let result = virgl_renderer_init(nil, flags.cint, addr(callbacks)) # 2 spaces
+  let initStatus = virgl_renderer_init(nil, flags.cint, addr(callbacks)) # 2 spaces
 
-  if result != 0:                             # 2 spaces
-    error "VirGL: CRITICAL - Failed to initialize VirGL renderer. Error code: ", result, ". Check VirGL/Mesa versions and GPU compatibility. Equinox may not function correctly or will have significantly reduced performance." # 4 spaces
+  if initStatus != 0:                             # 2 spaces
+    error "VirGL: CRITICAL - Failed to initialize VirGL renderer. Error code: ", initStatus, ". Check VirGL/Mesa versions and GPU compatibility. Equinox may not function correctly or will have significantly reduced performance." # 4 spaces
     return false                               # 4 spaces
 
   info "VirGL: VirGL renderer initialized successfully." # 2 spaces

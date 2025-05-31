@@ -1,5 +1,4 @@
-import std/[strformat, os, options, logging]
-import pkg/[colored_logger]
+import std/[strformat, os, logging]
 import ../[argparser]
 
 type XdgEnv* = object
