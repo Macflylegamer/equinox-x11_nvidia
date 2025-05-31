@@ -221,9 +221,6 @@ method view(app: SettingsMenuState): Widget =
                     proc changed(text: string) =
                       app.config.allocator = text
 
-        else:
-          discard
-
 proc runSettingsMenu*() =
   var config = loadAppConfig($getpwuid(getuid()).pwName)
   adw.brew(
